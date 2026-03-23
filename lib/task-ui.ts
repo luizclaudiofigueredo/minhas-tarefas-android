@@ -1,6 +1,27 @@
 export type TaskStatus = 'in_progress' | 'paused' | 'finished' | 'sem_card' | string;
 
+export function normalizeTaskStatus(status?: string | null): TaskStatus {
+  const normalized = status?.trim().toLowerCase();
+
+  switch (normalized) {
+    case 'em_andamento':
+    case 'in_progress':
+      return 'in_progress';
+    case 'pausado':
+    case 'paused':
+      return 'paused';
+    case 'finalizado':
+    case 'finished':
+      return 'finished';
+    case 'sem_card':
+      return 'sem_card';
+    default:
+      return normalized ?? 'sem_card';
+  }
+}
+
 export function formatStatus(status: TaskStatus) {
+  const normalizedStatus = normalizeTaskStatus(status);
   const labels: Record<string, string> = {
     in_progress: 'Em desenvolvimento',
     paused: 'Pausado',
@@ -8,11 +29,11 @@ export function formatStatus(status: TaskStatus) {
     sem_card: 'Sem card',
   };
 
-  return labels[status] ?? status.replaceAll('_', ' ');
+  return labels[normalizedStatus] ?? normalizedStatus.replaceAll('_', ' ');
 }
 
 export function statusPalette(status: TaskStatus) {
-  switch (status) {
+  switch (normalizeTaskStatus(status)) {
     case 'in_progress':
       return { bg: '#dfe9e2', fg: '#0f6158', accent: '#6b4b2f' };
     case 'paused':
