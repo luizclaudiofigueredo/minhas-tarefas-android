@@ -10,6 +10,7 @@ import {
   formatDurationDisplay,
   formatSecondsDisplay,
   formatStatus,
+  normalizeTaskStatus,
   parseDurationToSeconds,
   statusPalette,
 } from '@/lib/task-ui';
@@ -57,21 +58,23 @@ export default function TaskDetailsScreen() {
     });
   }, [loadData]);
 
+  const currentStatus = normalizeTaskStatus(task?.work_status);
+
   useEffect(() => {
     const baseSpentSeconds = parseDurationToSeconds(task?.spent_text);
     const syncedAt = task?.last_synced_at ? new Date(task.last_synced_at).getTime() : Number.NaN;
     const elapsedSinceSync = Number.isFinite(syncedAt) ? Math.max(0, Math.floor((Date.now() - syncedAt) / 1000)) : 0;
 
-    setLiveSpentSeconds(task?.work_status === 'in_progress' ? baseSpentSeconds + elapsedSinceSync : baseSpentSeconds);
+    setLiveSpentSeconds(currentStatus === 'in_progress' ? baseSpentSeconds + elapsedSinceSync : baseSpentSeconds);
 
-    if (task?.work_status !== 'in_progress') return;
+    if (currentStatus !== 'in_progress') return;
 
     const timerId = setInterval(() => {
       setLiveSpentSeconds((current) => current + 1);
     }, 1000);
 
     return () => clearInterval(timerId);
-  }, [task?.last_synced_at, task?.spent_text, task?.work_status]);
+  }, [currentStatus, task?.last_synced_at, task?.spent_text]);
 
   async function handleAction(action: 'finalize' | 'pause' | 'restart') {
     if (!token || !task || pendingAction) return;
@@ -86,10 +89,10 @@ export default function TaskDetailsScreen() {
     }
   }
 
-  const palette = statusPalette(task?.work_status ?? 'sem_card');
-  const canPause = task?.work_status === 'in_progress';
-  const canRestart = task?.work_status === 'paused' || task?.work_status === 'finished' || task?.work_status === 'sem_card';
-  const canFinalize = task?.work_status === 'in_progress' || task?.work_status === 'paused';
+  const palette = statusPalette(currentStatus);
+  const canPause = currentStatus === 'in_progress';
+  const canRestart = currentStatus === 'paused' || currentStatus === 'finished' || currentStatus === 'sem_card';
+  const canFinalize = currentStatus === 'in_progress' || currentStatus === 'paused';
   const estimatedSeconds = parseDurationToSeconds(task?.estimated_text);
   const remainingSeconds = estimatedSeconds - liveSpentSeconds;
   const remainingExceeded = remainingSeconds < 0;
@@ -110,7 +113,7 @@ export default function TaskDetailsScreen() {
         </View>
 
         <Text style={styles.statusCaption}>Status atual</Text>
-        <Text style={[styles.statusValue, { color: palette.accent }]}>{formatStatus(task?.work_status ?? 'sem_card')}</Text>
+        <Text style={[styles.statusValue, { color: palette.accent }]}>{formatStatus(currentStatus)}</Text>
         <Text style={styles.taskName}>Tarefa: {task?.title ?? 'Carregando...'}</Text>
 
         <View style={styles.heroCard}>
