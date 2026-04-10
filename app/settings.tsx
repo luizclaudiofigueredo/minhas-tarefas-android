@@ -17,6 +17,10 @@ type Setting = {
   schedule_times: string;
 };
 
+type AutomationSettingData = {
+  trello_monthly_total_list_id: string | null;
+};
+
 const initialForm = { client_name: '', start_date: '', end_date: '', value_hour: '', schedule_enabled: false, schedule_times: '' };
 const monthLabels = ['Janeiro', 'Fevereiro', 'Marco', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 const weekLabels = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
@@ -77,6 +81,8 @@ export default function SettingsScreen() {
   const [signingOut, setSigningOut] = useState(false);
   const [dateField, setDateField] = useState<'start_date' | 'end_date' | null>(null);
   const [calendarMonth, setCalendarMonth] = useState(() => parseIsoDate(initialForm.start_date) ?? new Date());
+  const [monthlyListId, setMonthlyListId] = useState('');
+  const [savingMonthlyListId, setSavingMonthlyListId] = useState(false);
 
   const loadSettings = useCallback(async () => {
     if (!token) return;
@@ -84,11 +90,35 @@ export default function SettingsScreen() {
     setSettings(response);
   }, [token]);
 
+  const loadAutomationSetting = useCallback(async () => {
+    if (!token) return;
+    const response = await apiRequest<AutomationSettingData>('/automation_setting', { token });
+    setMonthlyListId(response.trello_monthly_total_list_id ?? '');
+  }, [token]);
+
   useEffect(() => {
     loadSettings().catch((error: unknown) => {
       Alert.alert('Erro', error instanceof Error ? error.message : 'Falha ao carregar configuracoes.');
     });
-  }, [loadSettings]);
+    loadAutomationSetting().catch(() => undefined);
+  }, [loadSettings, loadAutomationSetting]);
+
+  async function handleSaveMonthlyListId() {
+    if (!token || savingMonthlyListId) return;
+    setSavingMonthlyListId(true);
+    try {
+      await apiRequest('/automation_setting', {
+        method: 'PATCH',
+        token,
+        body: JSON.stringify({ automation_setting: { trello_monthly_total_list_id: monthlyListId.trim() || null } }),
+      });
+      Alert.alert('Salvo', 'ID da lista mensal atualizado.');
+    } catch (error) {
+      Alert.alert('Erro', error instanceof Error ? error.message : 'Falha ao salvar.');
+    } finally {
+      setSavingMonthlyListId(false);
+    }
+  }
 
   async function handleSubmit() {
     if (!token) return;
@@ -182,6 +212,22 @@ export default function SettingsScreen() {
             />
           </View>
           <SettingsItem icon={<Ionicons name="color-palette" size={24} color="#6b4b2f" />} title="Appearance" subtitle="Light theme" />
+        </View>
+
+        <View style={styles.configCard}>
+          <Text style={styles.configTitle}>Trello — Lista do Total Mensal</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="ID da lista (TRELLO_MONTHLY_TOTAL_LIST_ID)"
+            placeholderTextColor="#ab9d8f"
+            value={monthlyListId}
+            onChangeText={setMonthlyListId}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          <Pressable style={styles.saveButton} onPress={handleSaveMonthlyListId} disabled={savingMonthlyListId}>
+            <Text style={styles.saveButtonText}>{savingMonthlyListId ? 'Salvando...' : 'Salvar'}</Text>
+          </Pressable>
         </View>
 
         <View style={styles.configCard}>
